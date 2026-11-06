@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Picking Analytics Pro - CCU TPM</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- FontAwesome para Iconos -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <!-- Chart.js para Gráficos de Productividad -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #03141b;
+            background-image: 
+                radial-gradient(ellipse at 80% 20%, rgba(0, 180, 216, 0.22) 0%, transparent 50%),
+                radial-gradient(ellipse at 15% 75%, rgba(0, 150, 136, 0.18) 0%, transparent 50%),
+                radial-gradient(circle at 50% 90%, rgba(0, 230, 118, 0.12) 0%, transparent 40%),
+                radial-gradient(circle at 90% 95%, rgba(213, 0, 249, 0.15) 0%, transparent 35%),
+                linear-gradient(135deg, #020c10 0%, #05212d 50%, #03141b 100%);
+            background-attachment: fixed;
+            color: #ffffff;
+        }
+
+        .ccu-card {
+            background: rgba(8, 32, 43, 0.85);
+            border: 1px solid rgba(0, 229, 255, 0.25);
+            backdrop-filter: blur(16px);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .ccu-btn-primary {
+            background: linear-gradient(90deg, #00838f 0%, #00acc1 100%);
+            color: #ffffff;
+            font-weight: 700;
+            box-shadow: 0 4px 15px rgba(0, 172, 193, 0.3);
+            transition: all 0.2s ease-in-out;
+        }
+
+        .ccu-btn-primary:hover {
+            background: linear-gradient(90deg, #00acc1 0%, #26c6da 100%);
+            box-shadow: 0 6px 20px rgba(0, 172, 193, 0.5);
+        }
+
+        input, select {
+            background-color: #020b0e !important;
+            color: #ffffff !important;
+            border-color: rgba(0, 229, 255, 0.4) !important;
+        }
+
+        input:focus, select:focus {
+            border-color: #00e5ff !important;
+            box-shadow: 0 0 0 2px rgba(0, 229, 255, 0.25) !important;
+        }
+
+        .ccu-rainbow-line {
+            height: 4px;
+            background: linear-gradient(90deg, #00e676 0%, #00e5ff 35%, #2979ff 70%, #d500f9 100%);
+            box-shadow: 0 0 12px rgba(0, 229, 255, 0.6);
+        }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #020c10; }
+        ::-webkit-scrollbar-thumb { background: #00acc1; border-radius: 4px; }
+
+        @media print {
+            body { background: white !important; color: black !important; }
+            nav, .ccu-rainbow-line, #seccionSupervisor, #seccionAuxiliar, .no-print { display: none !important; }
+            #seccionMinuta { display: block !important; }
+            .print-card { background: white !important; border: 1px solid #ccc !important; color: black !important; page-break-inside: avoid; }
+            .print-text { color: black !important; }
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+
+    <!-- BARRA NAVEGACIÓN SUPERIOR CCU TPM -->
+    <nav class="bg-[#020d12]/95 border-b border-cyan-500/30 px-6 py-4 flex flex-wrap justify-between items-center gap-4 sticky top-0 z-40 backdrop-blur-md shadow-xl">
+        <div class="flex items-center space-x-4">
+            <div class="flex items-center space-x-2 border-r border-teal-500/40 pr-4">
+                <span class="text-2xl font-black text-white tracking-widest">CCU</span>
+                <span class="text-xs bg-teal-500/20 text-teal-300 font-bold px-2 py-0.5 rounded border border-teal-400/40">TPM</span>
+            </div>
+            <div>
+                <h1 class="text-xl font-extrabold tracking-wide text-white flex items-center gap-2">
+                    <i class="fa-solid fa-warehouse text-cyan-400"></i> Picking Analytics Pro
+                </h1>
+                <p class="text-xs text-cyan-200/80 font-medium">Gestión de Productividad Granular por Pallet</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4">
+            <div id="vistaTabs" class="hidden bg-[#020b0e] p-1 rounded-lg border border-cyan-500/40">
+                <button id="tabSupervisor" onclick="cambiarModoVista('SUPERVISOR')" class="px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white transition shadow">
+                    <i class="fa-solid fa-chart-line mr-1"></i> Panel Supervisor
+                </button>
+                <button id="tabMinuta" onclick="cambiarModoVista('MINUTA')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
+                    <i class="fa-solid fa-list-check mr-1"></i> Minuta Auxiliares
+                </button>
+                <button id="tabAuxiliar" onclick="cambiarModoVista('AUXILIAR')" class="px-3 py-1.5 text-xs font-bold rounded-md text-slate-300 hover:text-white transition">
+                    <i class="fa-solid fa-dolly mr-1"></i> Mi Vista Picker
+                </button>
+            </div>
+
+            <div id="cdSelectorContainer" class="hidden">
+                <select id="cdSelect" onchange="cambiarCDActual()" class="text-white text-sm font-semibold rounded-md px-3 py-1.5 border border-cyan-500/50 focus:outline-none">
+                </select>
+            </div>
+
+            <div id="userInfo" class="flex items-center gap-3 bg-[#020b0e] px-3 py-1.5 rounded-lg border border-cyan-500/40">
+                <div class="text-right">
+                    <p id="userNombre" class="text-sm font-bold text-white">No autenticado</p>
+                    <span id="userRolBadge" class="text-xs px-2 py-0.5 rounded bg-cyan-950 text-cyan-300 font-bold border border-cyan-500/30">INVITADO</span>
+                </div>
+                <button onclick="cerrarSesion()" title="Cerrar Sesión" class="text-cyan-300 hover:text-red-400 transition">
+                    <i class="fa-solid fa-power-off text-base"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="ccu-rainbow-line w-full"></div>
+
+    <main class="p-6 max-w-7xl mx-auto space-y-6">
+
+        <!-- LOGIN -->
+        <div id="loginCard" class="max-w-md mx-auto ccu-card p-8 rounded-2xl shadow-2xl mt-12 border border-cyan-500/40">
+            <div class="text-center mb-6">
+                <div class="inline-flex items-center justify-center p-4 bg-cyan-500/10 rounded-full border border-cyan-400/40 mb-3">
+                    <i class="fa-solid fa-boxes-stacked text-3xl text-cyan-300"></i>
+                </div>
+                <h2 class="text-2xl font-black text-white tracking-wide">Iniciar Sesión CCU TPM</h2>
+                <p class="text-slate-300 text-xs mt-1 font-medium">Ingresa tus credenciales autorizadas</p>
+            </div>
+            <form onsubmit="return iniciarSesion(event);" class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1 tracking-wider">CORREO ELECTRÓNICO</label>
+                    <input type="email" id="loginEmail" required placeholder="usuario@ccu.cl" class="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1 tracking-wider">CONTRASEÑA</label>
+                    <input type="password" id="loginPassword" required placeholder="••••••••" class="w-full rounded-lg px-3 py-2.5 text-sm focus:outline-none">
+                </div>
+                <button type="submit" class="w-full ccu-btn-primary py-3 rounded-lg text-sm font-bold transition flex items-center justify-center gap-2 mt-2">
+                    <i class="fa-solid fa-right-to-bracket"></i> INGRESAR AL SISTEMA
+                </button>
+            </form>
+        </div>
+
+        <!-- DASHBOARD GENERAL -->
+        <div id="appDashboard" class="hidden space-y-6">
+
+            <!-- FILTRO DE SELECCIÓN DE CAMIÓN Y VUELTA -->
+            <div class="ccu-card p-4 rounded-xl flex flex-wrap justify-between items-center gap-4 border-cyan-500/40 no-print">
+                <div class="flex items-center gap-3">
+                    <div class="bg-cyan-500/20 text-cyan-300 p-3 rounded-lg border border-cyan-400/40">
+                        <i class="fa-solid fa-truck-front text-xl"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-sm font-bold text-white">Selección de Ruta / Camión y Vuelta</h3>
+                        <p class="text-xs text-slate-300">Filtra la información por fecha o camión específico</p>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-3">
+                    <div>
+                        <label for="filtroCamionSelect" class="block text-[10px] text-cyan-200 font-bold mb-0.5">CAMIÓN - VUELTA (ROUTE_ID)</label>
+                        <select id="filtroCamionSelect" onchange="aplicarFiltrosGlobales()" class="text-xs font-bold rounded-lg px-3 py-1.5 border focus:outline-none min-w-[200px]">
+                            <option value="TODOS">Todos los Camiones / Vueltas</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label for="filtroFechaInput" class="block text-[10px] text-cyan-200 font-bold mb-0.5">FECHA</label>
+                        <input type="date" id="filtroFechaInput" onchange="aplicarFiltrosGlobales()" class="text-xs rounded-lg px-2.5 py-1.5 border focus:outline-none">
+                    </div>
+
+                    <div class="self-end">
+                        <button onclick="limpiarFiltros()" class="bg-slate-800 hover:bg-slate-700 text-cyan-200 px-3 py-1.5 rounded-lg text-xs font-bold border border-cyan-500/40 transition">
+                            Resetear
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- VISTA DE SUPERVISOR -->
+            <div id="seccionSupervisor" class="space-y-6">
+                <div class="flex flex-wrap justify-between items-center gap-4 ccu-card p-4 rounded-xl">
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="cargarVolantesPicking()" class="bg-cyan-700 hover:bg-cyan-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 border border-cyan-400/40">
+                            <i class="fa-solid fa-rotate mr-1"></i> Recargar
+                        </button>
+                        <button id="btnGestionUsuarios" onclick="mostrarModalCrearUsuario()" class="bg-slate-800 hover:bg-slate-700 text-emerald-300 px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 border border-emerald-500/40">
+                            <i class="fa-solid fa-user-plus"></i> Crear Usuario
+                        </button>
+                        <button id="btnGestionCDs" onclick="mostrarModalCrearCD()" class="bg-slate-800 hover:bg-slate-700 text-amber-300 px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 border border-amber-500/40">
+                            <i class="fa-solid fa-warehouse"></i> Crear CD
+                        </button>
+                        <button onclick="exportarReporteCSV()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow">
+                            <i class="fa-solid fa-file-excel"></i> Exportar CSV
+                        </button>
+                        <button onclick="abrirModalGestionAuxiliares()" class="bg-purple-700 hover:bg-purple-600 text-white px-4 py-2 rounded-lg font-bold text-xs flex items-center gap-2 shadow border border-purple-400/40">
+                            <i class="fa-solid fa-users-viewfinder"></i> Gestión Auxiliares
+                        </button>
+                    </div>
+
+                    <button id="btnDigitalizar" onclick="abrirModalOCR()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded-lg font-extrabold text-xs shadow-lg flex items-center gap-2 border border-emerald-400/40">
+                        <i class="fa-solid fa-file-arrow-up"></i> Cargar Archivo FLETB (.TXT)
+                    </button>
+                </div>
+
+                <!-- TARJETAS KPIS -->
+                <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-red-500/30">
+                        <p class="text-[10px] text-red-300 font-bold uppercase tracking-wider">Cajas Por Asignar</p>
+                        <h3 id="kpiCajasSinAsignar" class="text-xl font-black text-red-400">0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-amber-500/30">
+                        <p class="text-[10px] text-amber-300 font-bold uppercase tracking-wider">Cajas Iniciadas</p>
+                        <h3 id="kpiCajasPendientes" class="text-xl font-black text-amber-400">0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-emerald-500/30">
+                        <p class="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Cajas Terminadas</p>
+                        <h3 id="kpiCajasTerminadas" class="text-xl font-black text-emerald-400">0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-cyan-500/30">
+                        <p class="text-[10px] text-cyan-300 font-bold uppercase tracking-wider">Prom. Cajas / Hora</p>
+                        <h3 id="kpiUPHCajas" class="text-xl font-black text-cyan-300">0.0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-purple-500/30">
+                        <p class="text-[10px] text-purple-300 font-bold uppercase tracking-wider">Prom. Pallets / Hora</p>
+                        <h3 id="kpiUPHPallets" class="text-xl font-black text-purple-300">0.0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between">
+                        <p class="text-[10px] text-slate-300 font-bold uppercase tracking-wider">Totales (Cajas/Pallets)</p>
+                        <h3 id="kpiTotalesCajasPallets" class="text-base font-black text-white">0 / 0</h3>
+                    </div>
+                    <div class="ccu-card rounded-xl p-3 flex flex-col justify-between border-emerald-500/40">
+                        <p class="text-[10px] text-emerald-300 font-bold uppercase tracking-wider">Avance Global</p>
+                        <h3 id="kpiSLA" class="text-xl font-black text-emerald-300">0%</h3>
+                    </div>
+                </div>
+
+                <!-- GRÁFICOS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="ccu-card rounded-xl p-4">
+                        <h4 class="text-sm font-extrabold text-white mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-stacked text-cyan-400"></i> Cajas Terminadas por Auxiliar
+                        </h4>
+                        <div class="h-64 relative">
+                            <canvas id="chartCajasAuxiliares"></canvas>
+                        </div>
+                    </div>
+                    <div class="ccu-card rounded-xl p-4">
+                        <h4 class="text-sm font-extrabold text-white mb-3 flex items-center gap-2">
+                            <i class="fa-solid fa-chart-pie text-emerald-400"></i> Estado de Pallets por Cargar
+                        </h4>
+                        <div class="h-64 relative">
+                            <canvas id="chartEstadoVolantes"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- MATRIZ HORARIA -->
+                <div class="ccu-card rounded-xl p-5 space-y-4 border border-cyan-500/40">
+                    <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3">
+                        <h4 class="text-sm font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-table-cells text-amber-400"></i> Matriz de Avance Horario (Cajas Terminadas por Auxiliar)
+                        </h4>
+                    </div>
+                    <div class="overflow-x-auto">
+                        <table id="tablaHorarioAvance" class="w-full text-xs text-left border-collapse">
+                            <thead>
+                                <tr id="encabezadoTablaHorario" class="bg-[#020b0e] text-cyan-300 border-b border-cyan-500/30">
+                                    <th class="p-2.5 font-extrabold min-w-[160px]">AUXILIAR / HORA</th>
+                                </tr>
+                            </thead>
+                            <tbody id="cuerpoTablaHorario" class="divide-y divide-slate-800 text-slate-200 font-mono">
+                            </tbody>
+                            <tfoot>
+                                <tr id="pieTablaHorario" class="bg-[#020b0e] text-emerald-300 font-extrabold border-t border-emerald-500/40">
+                                    <td class="p-2.5">TOTAL HORA</td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- SECCIÓN OPERATIVA POR CAMIÓN -->
+                <div class="ccu-card rounded-xl p-6 space-y-4">
+                    <div class="flex flex-wrap justify-between items-center border-b border-cyan-500/30 pb-4 gap-4">
+                        <h3 class="text-lg font-extrabold text-white flex items-center gap-2">
+                            <i class="fa-solid fa-boxes-packing text-cyan-400"></i> Desglose y Control Operativo por Camión / Vuelta
+                        </h3>
+                        <div class="flex items-center gap-2 bg-[#020b0e] px-3 py-1.5 rounded-lg border border-cyan-500/40">
+                            <label for="filtroEstadoVueltaSelect" class="text-xs font-bold text-cyan-300 flex items-center gap-1.5 whitespace-nowrap">
+                                <i class="fa-solid fa-filter text-cyan-400"></i> Estado Vuelta:
+                            </label>
+                            <select id="filtroEstadoVueltaSelect" onchange="aplicarFiltrosGlobales()" class="text-xs font-extrabold rounded px-2.5 py-1 focus:outline-none">
+                                <option value="TODOS">Todas las Vueltas</option>
+                                <option value="NO_INICIADO">🔴 No Iniciadas</option>
+                                <option value="EN_PROCESO">🔵 En Proceso</option>
+                                <option value="FINALIZADO">🟢 Finalizadas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="contenedorPalletsCamion" class="space-y-4"></div>
+                </div>
+            </div>
+
+            <!-- SECCIÓN: MINUTA DE REUNIÓN / IMPRESIÓN POR AUXILIAR -->
+            <div id="seccionMinuta" class="hidden space-y-6">
+                <div class="ccu-card rounded-xl p-6 print-card space-y-4">
+                    <div class="flex justify-between items-center border-b border-cyan-500/30 pb-4 no-print">
+                        <div>
+                            <h2 class="text-xl font-black text-white flex items-center gap-2">
+                                <i class="fa-solid fa-clipboard-list text-amber-400"></i> Hoja de Asignación por Auxiliar (Inicio de Turno)
+                            </h2>
+                            <p class="text-xs text-slate-300">Resumen operativo. Si un operador falta, puedes redistribuir su carga entre sus compañeros asistidos.</p>
+                        </div>
+                        <button onclick="window.print()" class="bg-cyan-600 hover:bg-cyan-500 text-white font-extrabold px-4 py-2 rounded-lg text-xs shadow flex items-center gap-2">
+                            <i class="fa-solid fa-print"></i> Imprimir / PDF
+                        </button>
+                    </div>
+
+                    <div id="contenedorMinutaAuxiliares" class="space-y-6"></div>
+                </div>
+            </div>
+
+            <!-- VISTA INDIVIDUAL DE AUXILIAR / PICKER -->
+            <div id="seccionAuxiliar" class="hidden space-y-6">
+                <div class="ccu-card rounded-xl p-6">
+                    <h2 class="text-xl font-black text-white mb-2 flex items-center gap-2">
+                        <i class="fa-solid fa-dolly text-emerald-400"></i> Mis Pallets Asignados para Pickear
+                    </h2>
+                    <p class="text-xs text-slate-300 mb-6">Presiona "Iniciar Picking" cuando comiences la preparación de cada pallet individual.</p>
+                    <div id="contenedorAuxiliarTarjetas" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- MODAL GESTIÓN DE AUXILIARES ACTIVOS / INACTIVOS -->
+    <div id="modalGestionAuxiliares" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="ccu-card rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-cyan-500/40">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-users-gear text-purple-400"></i> Estado de Auxiliares (Turno)
+                </h3>
+                <button onclick="cerrarModalGestionAuxiliares()" class="text-cyan-300 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="listaAuxiliaresEstado" class="space-y-2 max-h-72 overflow-y-auto pr-1"></div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-cyan-500/30">
+                <button onclick="cerrarModalGestionAuxiliares()" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold">Cerrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODALES DE CONTROL -->
+    <div id="modalCrearCD" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="ccu-card rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-cyan-500/40">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3">
+                <h3 class="font-bold text-lg text-white">Crear Centro de Distribución</h3>
+                <button onclick="cerrarModalCrearCD()" class="text-cyan-300 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Nombre del CD</label>
+                    <input type="text" id="nuevoCDNombre" placeholder="Ej: CD Osorno" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-cyan-500/30">
+                <button onclick="cerrarModalCrearCD()" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold">Cancelar</button>
+                <button onclick="guardarNuevoCD()" class="ccu-btn-primary px-4 py-2 rounded-lg text-sm">Guardar CD</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalCrearUsuario" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="ccu-card rounded-xl max-w-md w-full p-6 space-y-4 shadow-2xl border border-cyan-500/40">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3">
+                <h3 class="font-bold text-lg text-white">Crear Nuevo Usuario</h3>
+                <button onclick="cerrarModalCrearUsuario()" class="text-cyan-300 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Nombre Completo</label>
+                    <input type="text" id="nuevoUsuarioNombre" placeholder="Ej: Juan Pérez" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Correo Electrónico</label>
+                    <input type="email" id="nuevoUsuarioEmail" placeholder="juan@ccu.cl" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Contraseña</label>
+                    <input type="password" id="nuevoUsuarioPass" placeholder="••••••••" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Rol de Usuario</label>
+                    <select id="nuevoUsuarioRol" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none">
+                        <option value="AUXILIAR">Auxiliar de Picking</option>
+                        <option value="SUPERVISOR">Supervisor</option>
+                        <option value="ADMIN">Administrador</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Centro de Distribución Asignado</label>
+                    <select id="nuevoUsuarioCD" class="w-full rounded-lg px-3 py-2 text-sm focus:outline-none"></select>
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-cyan-500/30">
+                <button onclick="cerrarModalCrearUsuario()" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold">Cancelar</button>
+                <button onclick="guardarNuevoUsuario()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm">Guardar Usuario</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL OCR -->
+    <div id="modalOCR" class="fixed inset-0 bg-black/80 hidden flex items-center justify-center p-4 z-50">
+        <div class="ccu-card rounded-xl max-w-lg w-full p-6 space-y-4 shadow-2xl border border-cyan-500/40">
+            <div class="flex justify-between items-center border-b border-cyan-500/30 pb-3">
+                <h3 class="font-bold text-lg text-white flex items-center gap-2">
+                    <i class="fa-solid fa-file-csv text-cyan-400"></i> Cargar Archivo FLETB (.TXT)
+                </h3>
+                <button onclick="cerrarModalOCR()" class="text-cyan-300 hover:text-white"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div class="space-y-3">
+                <div class="bg-[#020d12] border border-cyan-500/40 rounded-lg p-3 text-xs text-cyan-200">
+                    <p class="font-bold"><i class="fa-solid fa-circle-info mr-1"></i> Formato Requerido:</p>
+                    <p class="mt-1 text-slate-300">Columnas <code>ROUTE_ID</code>, <code>BAY_NUMBER</code>, <code>QUANTITY</code> delimitadas por barra vertical (<code>|</code>).</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-bold text-cyan-200 mb-1">Seleccionar Archivo TXT</label>
+                    <input type="file" id="fotoVolanteInput" accept=".txt" class="w-full text-xs text-slate-300 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-bold file:bg-cyan-700 file:text-white hover:file:bg-cyan-600 cursor-pointer">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-4 border-t border-cyan-500/30">
+                <button onclick="cerrarModalOCR()" class="bg-slate-800 text-slate-300 px-4 py-2 rounded-lg text-sm font-bold">Cancelar</button>
+                <button onclick="procesarYAsignarDocumento()" class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-4 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <i class="fa-solid fa-gears"></i> Procesar y Descodificar Pallets
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SCRIPT PRINCIPAL -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getAuth, 
+            signInWithEmailAndPassword, 
+            createUserWithEmailAndPassword, 
+            signOut,
+            onAuthStateChanged,
+            setPersistence,
+            browserSessionPersistence 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { 
+            getFirestore, 
+            collection, 
+            doc, 
+            setDoc, 
+            addDoc, 
+            getDoc, 
+            getDocs, 
+            updateDoc, 
+            query, 
+            where,
+            writeBatch 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyCO2K1p1GS0kAS01CgDMvvYwNSjBe-rea8",
+            authDomain: "peak-empire-457520-e2.firebaseapp.com",
+            projectId: "peak-empire-457520-e2",
+            storageBucket: "peak-empire-457520-e2.firebasestorage.app",
+            messagingSenderId: "364203810763",
+            appId: "1:364203810763:web:1fad69a16be20f6ac7204e",
+            measurementId: "G-BQT8VHW2BH"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let usuarioActual = null;
+        let perfilUsuario = null;
+        let cdSeleccionadoId = null;
+        let modoVistaActual = 'SUPERVISOR';
+
+        let chartCajasAuxiliares = null;
+        let chartEstadoVolantes = null;
+        let listaAsignacionesGlobales = [];
+        
+        let mapaAuxiliaresObjetos = {}; 
+        let mapaAuxiliaresGlobal = {}; 
+
+        const acordeonesAbiertos = new Set();
+
+        function formatearHoraISO(isoString) {
+            if (!isoString) return '--:--';
+            try {
+                const fecha = new Date(isoString);
+                return fecha.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+            } catch (e) {
+                return '--:--';
+            }
+        }
+
+        function calcularDuracionMinutos(isoInicio, isoFin) {
+            if (!isoInicio) return '--';
+            try {
+                const inicio = new Date(isoInicio).getTime();
+                const fin = isoFin ? new Date(isoFin).getTime() : Date.now();
+                const diffMs = fin - inicio;
+                if (diffMs < 0) return '0 min';
+                const minutos = Math.floor(diffMs / 60000);
+                return `${minutos} min`;
+            } catch (e) {
+                return '--';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const hoy = new Date().toISOString().split('T')[0];
+            const inputFecha = document.getElementById('filtroFechaInput');
+            if (inputFecha) inputFecha.value = hoy;
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user && !perfilUsuario) {
+                await signOut(auth);
+            }
+        });
+
+        /* AUTENTICACIÓN */
+        window.iniciarSesion = async function(e) {
+            if (e && e.preventDefault) e.preventDefault();
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            try {
+                await setPersistence(auth, browserSessionPersistence);
+                const userCredential = await signInWithEmailAndPassword(auth, email, password);
+                usuarioActual = userCredential.user;
+                await cargarPerfilUsuario(usuarioActual.uid);
+            } catch (error) {
+                alert("Error de autenticación: " + error.message);
+            }
+            return false;
+        };
+
+        async function cargarPerfilUsuario(userId) {
+            try {
+                const docRef = doc(db, "perfiles", userId);
+                const docSnap = await getDoc(docRef);
+
+                if (!docSnap.exists()) return alert("Perfil no encontrado en Firestore.");
+
+                perfilUsuario = docSnap.data();
+                perfilUsuario.id = userId;
+                cdSeleccionadoId = perfilUsuario.cd_id;
+
+                document.getElementById('loginCard').classList.add('hidden');
+                document.getElementById('appDashboard').classList.remove('hidden');
+                document.getElementById('userNombre').innerText = perfilUsuario.nombre;
+                document.getElementById('userRolBadge').innerText = perfilUsuario.rol;
+                document.getElementById('vistaTabs').classList.remove('hidden');
+
+                if (perfilUsuario.rol === 'ADMIN' || perfilUsuario.rol === 'SUPERVISOR') {
+                    document.getElementById('btnGestionCDs').classList.remove('hidden');
+                    document.getElementById('cdSelectorContainer').classList.remove('hidden');
+                    await cargarListaCDs();
+                } else if (perfilUsuario.rol === 'AUXILIAR') {
+                    cambiarModoVista('AUXILIAR');
+                }
+
+                await cargarVolantesPicking();
+            } catch (err) {
+                alert("Error al cargar perfil: " + err.message);
+            }
+        }
+
+        window.cerrarSesion = async function() {
+            await signOut(auth);
+            window.location.reload();
+        };
+
+        window.cambiarModoVista = function(modo) {
+            modoVistaActual = modo;
+            const tabSup = document.getElementById('tabSupervisor');
+            const tabMin = document.getElementById('tabMinuta');
+            const tabAux = document.getElementById('tabAuxiliar');
+
+            const secSup = document.getElementById('seccionSupervisor');
+            const secMin = document.getElementById('seccionMinuta');
+            const secAux = document.getElementById('seccionAuxiliar');
+
+            [tabSup, tabMin, tabAux].forEach(t => t.className = "px-3 py-1.5 text-xs font-bold rounded-md text-slate-300 hover:text-white transition");
+            [secSup, secMin, secAux].forEach(s => s.classList.add('hidden'));
+
+            if (modo === 'SUPERVISOR') {
+                tabSup.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white transition shadow";
+                secSup.classList.remove('hidden');
+            } else if (modo === 'MINUTA') {
+                tabMin.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white transition shadow";
+                secMin.classList.remove('hidden');
+            } else {
+                tabAux.className = "px-3 py-1.5 text-xs font-bold rounded-md bg-cyan-600 text-white transition shadow";
+                secAux.classList.remove('hidden');
+            }
+            cargarVolantesPicking();
+        };
+
+        /* DESCODIFICACIÓN DE ARCHIVOS */
+        function parsearFLETBTexto(texto) {
+            const textoLimpio = texto.replace(/^\uFEFF/, '');
+            const lineas = textoLimpio.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+            
+            if (lineas.length <= 1) return [];
+
+            const encabezados = lineas[0].split('|').map(h => h.trim());
+            const registrosBrutos = [];
+
+            for (let i = 1; i < lineas.length; i++) {
+                const valores = lineas[i].split('|');
+                if (valores.length >= 2) {
+                    let fila = {};
+                    encabezados.forEach((key, index) => {
+                        fila[key] = valores[index] !== undefined ? valores[index].trim() : '';
+                    });
+                    registrosBrutos.push(fila);
+                }
+            }
+
+            if (registrosBrutos.length === 0) return [];
+
+            const agrupacionesPallets = {};
+
+            registrosBrutos.forEach((r) => {
+                const routeIdRaw = r.ROUTE_ID || r.CAMION || 'SIN_RUTA-01';
+                const partesRuta = routeIdRaw.split('-');
+                const camionCodigo = partesRuta[0] || 'DESCONOCIDO';
+                const vueltaNumero = partesRuta[1] || '01';
+
+                const bahiaPallet = r.BAY_NUMBER || r.PALLET || '1';
+                const cantidadCajas = parseFloat(r.QUANTITY) || 0;
+                const sku = r.SKU || r.PRODUCTO || 'SKU_GENERICO';
+
+                const palletKey = `${camionCodigo}_V${vueltaNumero}_P${bahiaPallet}`;
+
+                let fechaFormateada = new Date().toISOString().split('T')[0];
+                if (r.SESSION_DATE) {
+                    const partesFecha = r.SESSION_DATE.split(' ')[0].split('/');
+                    if (partesFecha.length === 3) {
+                        fechaFormateada = `${partesFecha[2]}-${partesFecha[1].padStart(2, '0')}-${partesFecha[0].padStart(2, '0')}`;
+                    }
+                }
+
+                if (!agrupacionesPallets[palletKey]) {
+                    agrupacionesPallets[palletKey] = {
+                        route_id: routeIdRaw,
+                        camion: camionCodigo,
+                        vuelta: vueltaNumero,
+                        bay_number: bahiaPallet,
+                        fecha_volante: fechaFormateada,
+                        total_cajas: 0,
+                        skus: new Set()
+                    };
+                }
+
+                agrupacionesPallets[palletKey].total_cajas += cantidadCajas;
+                agrupacionesPallets[palletKey].skus.add(sku);
+            });
+
+            return Object.values(agrupacionesPallets).map(p => ({
+                route_id: p.route_id,
+                camion: p.camion,
+                vuelta: p.vuelta,
+                bay_number: p.bay_number,
+                fecha_volante: p.fecha_volante,
+                total_cajas: Math.round(p.total_cajas),
+                skus_unicos: p.skus.size
+            }));
+        }
+
+        /* PROCESAMIENTO WRITEBATCH */
+        window.procesarYAsignarDocumento = async function() {
+            const fileInput = document.getElementById('fotoVolanteInput');
+            const btnProcesar = document.querySelector("#modalOCR button[onclick='procesarYAsignarDocumento()']");
+
+            if (!fileInput.files || !fileInput.files[0]) return alert("Selecciona un archivo TXT.");
+            const file = fileInput.files[0];
+
+            if (btnProcesar) {
+                btnProcesar.disabled = true;
+                btnProcesar.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Guardando en Lote...`;
+            }
+
+            try {
+                const textoContenido = await file.text();
+                const palletsDetectados = parsearFLETBTexto(textoContenido);
+
+                if (!palletsDetectados || palletsDetectados.length === 0) {
+                    alert("No se pudieron extraer bahías y pallets del archivo.");
+                    return;
+                }
+
+                const fechaCargada = palletsDetectados[0].fecha_volante;
+
+                const TAMANO_LOTE = 200; 
+                for (let i = 0; i < palletsDetectados.length; i += TAMANO_LOTE) {
+                    const chunk = palletsDetectados.slice(i, i + TAMANO_LOTE);
+                    const batch = writeBatch(db);
+
+                    chunk.forEach(p => {
+                        const refPrioridad = doc(collection(db, "prioridades_cargas"));
+                        const refAsignacion = doc(collection(db, "asignaciones_cargas"));
+
+                        batch.set(refPrioridad, {
+                            centro_distribucion_id: cdSeleccionadoId,
+                            route_id: p.route_id,
+                            camion: p.camion,
+                            vuelta: p.vuelta,
+                            bay_number: p.bay_number,
+                            total_cajas: p.total_cajas,
+                            skus_unicos: p.skus_unicos,
+                            fecha_volante: p.fecha_volante
+                        });
+
+                        batch.set(refAsignacion, {
+                            prioridad_id: refPrioridad.id,
+                            usuario_id: 'SIN_ASIGNAR',
+                            estado: 'PENDIENTE',
+                            fecha_asignacion: new Date().toISOString(),
+                            fecha_inicio: null,
+                            fecha_fin: null
+                        });
+                    });
+
+                    await batch.commit();
+                }
+
+                const inputFecha = document.getElementById('filtroFechaInput');
+                if (inputFecha) inputFecha.value = fechaCargada;
+
+                alert(`¡Éxito! Se guardaron ${palletsDetectados.length} pallets de forma ultrarrápida.`);
+                cerrarModalOCR();
+                await cargarVolantesPicking();
+
+            } catch (err) {
+                alert("Error durante el procesamiento: " + err.message);
+            } finally {
+                if (btnProcesar) {
+                    btnProcesar.disabled = false;
+                    btnProcesar.innerHTML = `<i class="fa-solid fa-gears"></i> Procesar y Descodificar Pallets`;
+                }
+            }
+        };
+
+        /* CONSULTA DE DATOS */
+        window.cargarVolantesPicking = async function() {
+            try {
+                const qPerfiles = query(collection(db, "perfiles"), where("rol", "==", "AUXILIAR"));
+                const snapPerfiles = await getDocs(qPerfiles);
+                
+                mapaAuxiliaresObjetos = {};
+                mapaAuxiliaresGlobal = {};
+
+                snapPerfiles.forEach(docSnap => {
+                    const p = docSnap.data();
+                    if (p.cd_id === cdSeleccionadoId) {
+                        const esActivo = p.activo !== false;
+                        mapaAuxiliaresObjetos[docSnap.id] = {
+                            id: docSnap.id,
+                            nombre: p.nombre,
+                            activo: esActivo
+                        };
+
+                        if (esActivo) {
+                            mapaAuxiliaresGlobal[docSnap.id] = p.nombre;
+                        }
+                    }
+                });
+
+                const snapAsig = await getDocs(collection(db, "asignaciones_cargas"));
+                
+                const promesasConsultas = snapAsig.docs.map(async (docAsig) => {
+                    const dataAsig = docAsig.data();
+                    dataAsig.id = docAsig.id;
+
+                    if (dataAsig.prioridad_id) {
+                        const cargaSnap = await getDoc(doc(db, "prioridades_cargas", dataAsig.prioridad_id));
+                        if (cargaSnap.exists()) {
+                            dataAsig.prioridades_cargas = cargaSnap.data();
+                            if (dataAsig.prioridades_cargas.centro_distribucion_id === cdSeleccionadoId) {
+                                return dataAsig;
+                            }
+                        }
+                    }
+                    return null;
+                });
+
+                const resultados = await Promise.all(promesasConsultas);
+                listaAsignacionesGlobales = resultados.filter(item => item !== null);
+
+                poblarSelectorCamiones(listaAsignacionesGlobales);
+                aplicarFiltrosGlobales();
+
+            } catch (err) {
+                console.error("Error consultando Firestore:", err);
+            }
+        };
+
+        function poblarSelectorCamiones(lista) {
+            const select = document.getElementById('filtroCamionSelect');
+            if (!select) return;
+
+            const rutasUnicas = new Set();
+            lista.forEach(item => {
+                const c = item.prioridades_cargas;
+                if (c && c.route_id) {
+                    rutasUnicas.add(`${c.camion}-V${c.vuelta}|${c.route_id}`);
+                }
+            });
+
+            select.innerHTML = '<option value="TODOS">Todos los Camiones / Vueltas</option>';
+            rutasUnicas.forEach(r => {
+                const [label, val] = r.split('|');
+                select.innerHTML += `<option value="${val}">Camión ${label.replace('-V', ' (Vuelta ')} )</option>`;
+            });
+        }
+
+        window.aplicarFiltrosGlobales = function() {
+            const fechaFiltro = document.getElementById('filtroFechaInput') ? document.getElementById('filtroFechaInput').value : '';
+            const camionFiltro = document.getElementById('filtroCamionSelect') ? document.getElementById('filtroCamionSelect').value : 'TODOS';
+
+            const listaFiltrada = listaAsignacionesGlobales.filter(item => {
+                const carga = item.prioridades_cargas;
+                const fechaVolante = carga && carga.fecha_volante ? carga.fecha_volante : (item.fecha_asignacion ? item.fecha_asignacion.split('T')[0] : '');
+                
+                const cumpleFecha = !fechaFiltro || fechaVolante === fechaFiltro;
+                const cumpleCamion = camionFiltro === 'TODOS' || (carga && carga.route_id === camionFiltro);
+
+                return cumpleFecha && cumpleCamion;
+            });
+
+            renderizarVistaSupervisorPallets(listaFiltrada);
+            renderizarVistaMinutaAuxiliares(listaFiltrada);
+            renderizarVistaAuxiliar(listaFiltrada);
+        };
+
+        window.limpiarFiltros = function() {
+            const inputFecha = document.getElementById('filtroFechaInput');
+            const selectCamion = document.getElementById('filtroCamionSelect');
+            const selectEstadoVuelta = document.getElementById('filtroEstadoVueltaSelect');
+
+            if (inputFecha) inputFecha.value = '';
+            if (selectCamion) selectCamion.value = 'TODOS';
+            if (selectEstadoVuelta) selectEstadoVuelta.value = 'TODOS';
+
+            aplicarFiltrosGlobales();
+        };
+
+        /* GESTIÓN DE AUXILIARES ACTIVOS */
+        window.abrirModalGestionAuxiliares = function() {
+            const contenedor = document.getElementById('listaAuxiliaresEstado');
+            if (!contenedor) return;
+
+            contenedor.innerHTML = '';
+            const auxList = Object.values(mapaAuxiliaresObjetos);
+
+            if (auxList.length === 0) {
+                contenedor.innerHTML = `<div class="text-slate-400 text-xs py-4 text-center">No hay auxiliares de picking registrados en este CD.</div>`;
+            } else {
+                auxList.forEach(aux => {
+                    const div = document.createElement('div');
+                    div.className = "flex justify-between items-center bg-[#020b0e] p-3 rounded-lg border border-cyan-500/30";
+                    div.innerHTML = `
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid fa-user text-cyan-400 text-xs"></i>
+                            <span class="text-xs font-bold text-white">${aux.nombre}</span>
+                        </div>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" ${aux.activo ? 'checked' : ''} onchange="cambiarEstadoAuxiliar('${aux.id}', this.checked)">
+                            <div class="w-9 h-5 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-emerald-500"></div>
+                            <span class="ml-2 text-[10px] font-bold ${aux.activo ? 'text-emerald-400' : 'text-slate-400'}">${aux.activo ? 'ACTIVO' : 'INACTIVO'}</span>
+                        </label>
+                    `;
+                    contenedor.appendChild(div);
+                });
+            }
+
+            document.getElementById('modalGestionAuxiliares').classList.remove('hidden');
+        };
+
+        window.cerrarModalGestionAuxiliares = function() {
+            document.getElementById('modalGestionAuxiliares').classList.add('hidden');
+        };
+
+        window.cambiarEstadoAuxiliar = async function(auxId, estaActivo) {
+            if (mapaAuxiliaresObjetos[auxId]) {
+                mapaAuxiliaresObjetos[auxId].activo = estaActivo;
+                if (estaActivo) {
+                    mapaAuxiliaresGlobal[auxId] = mapaAuxiliaresObjetos[auxId].nombre;
+                } else {
+                    delete mapaAuxiliaresGlobal[auxId];
+                }
+            }
+
+            abrirModalGestionAuxiliares();
+            aplicarFiltrosGlobales();
+
+            try {
+                await updateDoc(doc(db, "perfiles", auxId), { activo: estaActivo });
+            } catch (err) {
+                alert("Error actualizando estado del auxiliar: " + err.message);
+            }
+        };
+
+        /* =================================================================
+           NUEVA FUNCIÓN OPERATIVA: REASIGNAR TODOS LOS PALLETS DE UN AUXILIAR FALTANTE
+           ================================================================= */
+        window.reasignarTodosPalletsDeAuxiliar = async function(auxiliarFaltanteId, nombreAuxiliar) {
+            // Filtrar auxiliares ACTIVOS excepto el faltante
+            const compañerosActivosIds = Object.keys(mapaAuxiliaresGlobal).filter(id => id !== auxiliarFaltanteId);
+
+            if (compañerosActivosIds.length === 0) {
+                return alert("No hay OTROS auxiliares ACTIVOS disponibles para recibir esta carga. Por favor, activa al menos un compañero en 'Gestión Auxiliares'.");
+            }
+
+            // Obtener pallets asignados al auxiliar faltante que NO estén completados
+            const palletsReasignar = listaAsignacionesGlobales.filter(item => {
+                return item.usuario_id === auxiliarFaltanteId && item.estado !== 'COMPLETADO';
+            });
+
+            if (palletsReasignar.length === 0) {
+                return alert(`El auxiliar ${nombreAuxiliar} no tiene pallets pendientes ni en proceso para reasignar.`);
+            }
+
+            const confirmacion = confirm(`¿Confirmas que el auxiliar "${nombreAuxiliar}" NO asistió?\n\nSe redistribuirán de manera homogénea sus ${palletsReasignar.length} pallets pendientes entre sus ${compañerosActivosIds.length} compañeros activos.`);
+            if (!confirmacion) return;
+
+            try {
+                const batch = writeBatch(db);
+
+                palletsReasignar.forEach((item, idx) => {
+                    const nuevoAuxAsignado = compañerosActivosIds[idx % compañerosActivosIds.length];
+                    item.usuario_id = nuevoAuxAsignado;
+
+                    const refDoc = doc(db, "asignaciones_cargas", item.id);
+                    batch.update(refDoc, { usuario_id: nuevoAuxAsignado });
+                });
+
+                // Si se desea, podemos marcar temporalmente al auxiliar como inactivo
+                if (mapaAuxiliaresObjetos[auxiliarFaltanteId]) {
+                    mapaAuxiliaresObjetos[auxiliarFaltanteId].activo = false;
+                    delete mapaAuxiliaresGlobal[auxiliarFaltanteId];
+                    const refPerfil = doc(db, "perfiles", auxiliarFaltanteId);
+                    batch.update(refPerfil, { activo: false });
+                }
+
+                await batch.commit();
+
+                alert(`¡Éxito! Se redistribuyeron los ${palletsReasignar.length} pallets de ${nombreAuxiliar} entre sus compañeros activos.`);
+                aplicarFiltrosGlobales();
+
+            } catch (err) {
+                alert("Error al redistribuir la carga del auxiliar: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        /* RENDERIZADO PANEL SUPERVISOR */
+        function renderizarVistaSupervisorPallets(listaAMostrar) {
+            const contenedor = document.getElementById('contenedorPalletsCamion');
+            if (!contenedor) return;
+
+            contenedor.innerHTML = '';
+
+            const filtroEstadoVuelta = document.getElementById('filtroEstadoVueltaSelect') ? document.getElementById('filtroEstadoVueltaSelect').value : 'TODOS';
+
+            let totalCajasGlobal = 0;
+            let cajasSinAsignarAcc = 0;
+            let cajasPendientesAcc = 0;
+            let cajasTerminadasAcc = 0;
+
+            let totalPalletsGlobal = listaAMostrar ? listaAMostrar.length : 0;
+            let completadosPalletsAcc = 0;
+
+            let tiempoTotalSegundosCajas = 0;
+            let tiempoTotalSegundosPallets = 0;
+
+            const cajasPorAuxiliar = {};
+            const matrizHoraria = {};
+            const horasSet = new Set();
+
+            const conteoEstado = { PENDIENTE: 0, EN_PROCESO: 0, COMPLETADO: 0 };
+            const camionesSet = new Set();
+
+            const agrupadoPorCamion = {};
+            (listaAMostrar || []).forEach(item => {
+                const carga = item.prioridades_cargas;
+                const routeKey = carga ? (carga.route_id || 'SIN_RUTA') : 'SIN_RUTA';
+                if (!agrupadoPorCamion[routeKey]) agrupadoPorCamion[routeKey] = [];
+                agrupadoPorCamion[routeKey].push(item);
+                if (carga && carga.camion) camionesSet.add(carga.camion);
+            });
+
+            const rutasOrdenadas = Object.keys(agrupadoPorCamion).sort((a, b) => {
+                const primerCargaA = agrupadoPorCamion[a][0]?.prioridades_cargas || {};
+                const primerCargaB = agrupadoPorCamion[b][0]?.prioridades_cargas || {};
+
+                const vueltaA = parseInt(primerCargaA.vuelta, 10) || 0;
+                const vueltaB = parseInt(primerCargaB.vuelta, 10) || 0;
+
+                if (vueltaA !== vueltaB) return vueltaA - vueltaB;
+
+                const camionA = String(primerCargaA.camion || a);
+                const camionB = String(primerCargaB.camion || b);
+                return camionA.localeCompare(camionB, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            let camionesRendidos = 0;
+
+            rutasOrdenadas.forEach((routeId) => {
+                const palletsList = agrupadoPorCamion[routeId];
+                const primerCarga = palletsList[0].prioridades_cargas || {};
+                const camionNombre = primerCarga.camion || routeId;
+                const vueltaNombre = primerCarga.vuelta || '1';
+
+                let totalCajasCamion = 0;
+                let sinAsignarCamion = 0;
+                let asignadosPendientesCamion = 0;
+                let enProcesoCamion = 0;
+                let finalizadosCamion = 0;
+
+                let htmlTarjetasPallets = '';
+
+                palletsList.sort((a, b) => {
+                    const bahiaA = parseInt(a.prioridades_cargas?.bay_number, 10) || 0;
+                    const bahiaB = parseInt(b.prioridades_cargas?.bay_number, 10) || 0;
+                    return bahiaA - bahiaB;
+                });
+
+                palletsList.forEach(item => {
+                    const carga = item.prioridades_cargas || {};
+                    const bahia = carga.bay_number || '1';
+                    const cajas = carga.total_cajas || 0;
+                    const skus = carga.skus_unicos || 1;
+                    const estado = item.estado || 'PENDIENTE';
+                    const auxId = item.usuario_id;
+
+                    const horaInicio = formatearHoraISO(item.fecha_inicio);
+                    const horaFin = formatearHoraISO(item.fecha_fin);
+                    const duracionMin = (estado !== 'PENDIENTE') ? calcularDuracionMinutos(item.fecha_inicio, item.fecha_fin) : '--';
+
+                    totalCajasGlobal += cajas;
+                    totalCajasCamion += cajas;
+                    conteoEstado[estado] = (conteoEstado[estado] || 0) + 1;
+
+                    if (auxId === 'SIN_ASIGNAR') {
+                        sinAsignarCamion++;
+                        cajasSinAsignarAcc += cajas;
+                    } else if (estado !== 'COMPLETADO') {
+                        asignadosPendientesCamion++;
+                        cajasPendientesAcc += cajas;
+                    }
+
+                    if (estado === 'EN_PROCESO') enProcesoCamion++;
+
+                    if (estado === 'COMPLETADO') {
+                        finalizadosCamion++;
+                        completadosPalletsAcc++;
+                        cajasTerminadasAcc += cajas;
+
+                        const nombreAux = mapaAuxiliaresObjetos[auxId] ? mapaAuxiliaresObjetos[auxId].nombre : (mapaAuxiliaresGlobal[auxId] || 'Sin Asignar');
+                        cajasPorAuxiliar[nombreAux] = (cajasPorAuxiliar[nombreAux] || 0) + cajas;
+
+                        if (item.fecha_fin) {
+                            const fechaObjetoFin = new Date(item.fecha_fin);
+                            const bloqueHora = `${String(fechaObjetoFin.getHours()).padStart(2, '0')}:00`;
+                            horasSet.add(bloqueHora);
+
+                            if (!matrizHoraria[nombreAux]) matrizHoraria[nombreAux] = {};
+                            matrizHoraria[nombreAux][bloqueHora] = (matrizHoraria[nombreAux][bloqueHora] || 0) + cajas;
+                        }
+
+                        if (item.fecha_inicio && item.fecha_fin) {
+                            const diffSec = (new Date(item.fecha_fin).getTime() - new Date(item.fecha_inicio).getTime()) / 1000;
+                            if (diffSec > 0) {
+                                tiempoTotalSegundosCajas += diffSec;
+                                tiempoTotalSegundosPallets += diffSec;
+                            }
+                        }
+                    }
+
+                    let optionsAuxiliares = `<option value="SIN_ASIGNAR" ${auxId === 'SIN_ASIGNAR' ? 'selected' : ''}>-- Sin Asignar --</option>`;
+                    Object.keys(mapaAuxiliaresGlobal).forEach(id => {
+                        optionsAuxiliares += `<option value="${id}" ${auxId === id ? 'selected' : ''}>${mapaAuxiliaresGlobal[id]}</option>`;
+                    });
+
+                    if (auxId !== 'SIN_ASIGNAR' && !mapaAuxiliaresGlobal[auxId] && mapaAuxiliaresObjetos[auxId]) {
+                        optionsAuxiliares += `<option value="${auxId}" selected>${mapaAuxiliaresObjetos[auxId].nombre} (INACTIVO)</option>`;
+                    }
+
+                    let badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+                    if (estado === 'EN_PROCESO') badgeColor = 'bg-cyan-500/20 text-cyan-300 border-cyan-500/40';
+                    if (estado === 'COMPLETADO') badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40';
+
+                    let botonAccionSupervisor = '';
+                    if (estado === 'PENDIENTE') {
+                        botonAccionSupervisor = `<button onclick="iniciarVolante('${item.id}')" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-1.5 px-2 rounded text-xs transition shadow flex items-center justify-center gap-1"><i class="fa-solid fa-play text-[10px]"></i> Iniciar Picking</button>`;
+                    } else if (estado === 'EN_PROCESO') {
+                        botonAccionSupervisor = `<button onclick="completarVolante('${item.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-1.5 px-2 rounded text-xs transition shadow flex items-center justify-center gap-1"><i class="fa-solid fa-check text-[10px]"></i> Finalizar Picking</button>`;
+                    } else {
+                        botonAccionSupervisor = `<div class="text-center py-1 text-xs font-bold text-emerald-300 bg-emerald-500/20 rounded border border-emerald-500/30"><i class="fa-solid fa-circle-check mr-1"></i> Completado</div>`;
+                    }
+
+                    htmlTarjetasPallets += `
+                        <div class="ccu-card rounded-xl p-4 space-y-3 border border-cyan-500/30">
+                            <div class="flex justify-between items-center border-b border-cyan-500/20 pb-2">
+                                <span class="text-xs font-black text-cyan-300"><i class="fa-solid fa-pallet mr-1"></i> Pallet / Bahía ${bahia}</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold border ${badgeColor}">${estado}</span>
+                            </div>
+                            <div class="text-xs text-slate-200 space-y-1">
+                                <p>Cajas en Pallet: <strong class="text-white font-mono">${cajas}</strong></p>
+                                <p>SKUs Únicos: <strong class="text-purple-300 font-mono">${skus}</strong></p>
+                            </div>
+                            
+                            <div class="bg-[#020b0e] p-2 rounded-lg border border-cyan-500/20 space-y-1">
+                                <div class="flex justify-between items-center text-[11px] font-mono">
+                                    <div class="text-cyan-300">
+                                        <span class="text-[9px] text-slate-400 block font-sans">INICIO</span>
+                                        <i class="fa-regular fa-clock text-[9px] mr-0.5"></i>${horaInicio}
+                                    </div>
+                                    <div class="text-right text-emerald-300">
+                                        <span class="text-[9px] text-slate-400 block font-sans">TÉRMINO</span>
+                                        <i class="fa-regular fa-clock text-[9px] mr-0.5"></i>${horaFin}
+                                    </div>
+                                </div>
+                                <div class="border-t border-slate-800 pt-1 flex justify-between items-center text-[10px]">
+                                    <span class="text-slate-400 font-sans">TIEMPO TOTAL:</span>
+                                    <span class="font-mono font-bold text-amber-300">${duracionMin}</span>
+                                </div>
+                            </div>
+
+                            <div class="space-y-2 pt-1">
+                                <div>
+                                    <label class="block text-[10px] font-bold text-cyan-200 mb-1">ASIGNAR A AUXILIAR:</label>
+                                    <select onchange="reasignarPalletAuxiliar('${item.id}', this.value)" class="w-full text-xs rounded px-2 py-1 focus:outline-none">
+                                        ${optionsAuxiliares}
+                                    </select>
+                                </div>
+                                ${botonAccionSupervisor}
+                            </div>
+                        </div>
+                    `;
+                });
+
+                const totalPalletsCamion = palletsList.length;
+                let estadoVueltaCalculado = 'NO_INICIADO';
+
+                if (finalizadosCamion === totalPalletsCamion && totalPalletsCamion > 0) {
+                    estadoVueltaCalculado = 'FINALIZADO';
+                } else if (enProcesoCamion > 0 || finalizadosCamion > 0 || asignadosPendientesCamion > 0) {
+                    estadoVueltaCalculado = 'EN_PROCESO';
+                }
+
+                if (filtroEstadoVuelta !== 'TODOS' && filtroEstadoVuelta !== estadoVueltaCalculado) {
+                    return;
+                }
+
+                camionesRendidos++;
+
+                const pctSinAsignar = totalPalletsCamion > 0 ? Math.round((sinAsignarCamion / totalPalletsCamion) * 100) : 0;
+                const pctIniciados = totalPalletsCamion > 0 ? Math.round((asignadosPendientesCamion / totalPalletsCamion) * 100) : 0;
+                const pctFinalizados = totalPalletsCamion > 0 ? Math.round((finalizadosCamion / totalPalletsCamion) * 100) : 0;
+
+                let bgHeader = 'bg-[#020b0e] hover:bg-[#05212d]';
+                let borderCamion = 'border-cyan-500/40';
+                let badgeVuelta = 'bg-cyan-500/20 text-cyan-300 border-cyan-400/40';
+
+                if (estadoVueltaCalculado === 'FINALIZADO') {
+                    bgHeader = 'bg-emerald-950/60 hover:bg-emerald-900/50';
+                    borderCamion = 'border-emerald-500/80';
+                    badgeVuelta = 'bg-emerald-500/30 text-emerald-300 border-emerald-400';
+                } else if (sinAsignarCamion === totalPalletsCamion) {
+                    bgHeader = 'bg-red-950/60 hover:bg-red-900/50';
+                    borderCamion = 'border-red-500/80';
+                    badgeVuelta = 'bg-red-500/30 text-red-300 border-red-400';
+                } else if (estadoVueltaCalculado === 'EN_PROCESO') {
+                    bgHeader = 'bg-cyan-950/60 hover:bg-cyan-900/50';
+                    borderCamion = 'border-cyan-400/80';
+                    badgeVuelta = 'bg-cyan-500/30 text-cyan-300 border-cyan-400';
+                }
+
+                const camionCard = document.createElement('div');
+                camionCard.className = `ccu-card rounded-xl overflow-hidden shadow-lg transition-all ${borderCamion}`;
+                
+                const accordionId = `accordion_camion_${routeId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+                const flechaId = `flecha_camion_${routeId.replace(/[^a-zA-Z0-9]/g, '_')}`;
+
+                const estaAbierto = acordeonesAbiertos.has(accordionId);
+                const claseOculto = estaAbierto ? '' : 'hidden';
+                const claseRotacion = estaAbierto ? 'rotate-180' : '';
+
+                camionCard.innerHTML = `
+                    <div class="${bgHeader} p-4 flex flex-wrap justify-between items-center gap-4 cursor-pointer transition border-b border-cyan-500/30" onclick="toggleAcordeonCamion('${accordionId}', '${flechaId}')">
+                        <div class="flex items-center gap-3">
+                            <div class="${badgeVuelta} p-2.5 rounded-lg border flex items-center justify-center font-black text-sm">
+                                V${vueltaNombre}
+                            </div>
+                            <div>
+                                <h4 class="font-extrabold text-white text-base flex items-center gap-2">
+                                    Camión ${camionNombre} - Vuelta ${vueltaNombre}
+                                    <span class="text-xs font-mono font-normal text-cyan-300 bg-cyan-950/80 px-2 py-0.5 rounded border border-cyan-500/30">Route: ${routeId}</span>
+                                </h4>
+                                <p class="text-xs text-slate-300 mt-0.5">
+                                    <strong class="text-white">${palletsList.length}</strong> Pallets Totales | <strong class="text-cyan-300">${totalCajasCamion}</strong> Cajas
+                                </p>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-wrap items-center gap-2 text-xs font-bold" onclick="event.stopPropagation()">
+                            <button onclick="asignarHomogeneamenteRuta('${routeId}')" class="bg-purple-700 hover:bg-purple-600 text-white px-3 py-1.5 rounded-lg font-extrabold shadow border border-purple-400/40 flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-users-gear text-[10px]"></i> Asignar Auto
+                            </button>
+
+                            <button onclick="iniciarTodosLosAsignadosRuta('${routeId}')" class="bg-cyan-600 hover:bg-cyan-500 text-white px-3 py-1.5 rounded-lg font-extrabold shadow border border-cyan-400/40 flex items-center gap-1.5 transition">
+                                <i class="fa-solid fa-play text-[10px]"></i> Iniciar Asignados
+                            </button>
+
+                            <button onclick="finalizarTodaLaCargaRuta('${routeId}')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-3 py-1.5 rounded-lg font-extrabold shadow border border-emerald-400/40 flex items-center gap-1.5 mr-2 transition">
+                                <i class="fa-solid fa-circle-check text-[10px]"></i> Finalizar Carga
+                            </button>
+
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-mono font-extrabold text-red-400 leading-tight mb-0.5">${pctSinAsignar}%</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-red-500/20 text-red-300 border border-red-500/30">
+                                    <i class="fa-solid fa-user-slash mr-1"></i> ${sinAsignarCamion} Por Asignar
+                                </span>
+                            </div>
+
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-mono font-extrabold text-amber-400 leading-tight mb-0.5">${pctIniciados}%</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                    <i class="fa-solid fa-clock mr-1"></i> ${asignadosPendientesCamion} Iniciados
+                                </span>
+                            </div>
+
+                            <div class="flex flex-col items-center">
+                                <span class="text-[10px] font-mono font-extrabold text-emerald-400 leading-tight mb-0.5">${pctFinalizados}%</span>
+                                <span class="px-2.5 py-1 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    <i class="fa-solid fa-circle-check mr-1"></i> ${finalizadosCamion} Finalizados
+                                </span>
+                            </div>
+
+                            <i id="${flechaId}" onclick="toggleAcordeonCamion('${accordionId}', '${flechaId}')" class="fa-solid fa-chevron-down text-cyan-400 ml-2 transition-transform duration-300 ${claseRotacion}"></i>
+                        </div>
+                    </div>
+
+                    <div id="${accordionId}" class="${claseOculto} p-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 bg-[#03141b]/50 border-t border-cyan-500/20">
+                        ${htmlTarjetasPallets}
+                    </div>
+                `;
+                contenedor.appendChild(camionCard);
+            });
+
+            if (camionesRendidos === 0) {
+                contenedor.innerHTML = `<div class="p-8 text-center text-slate-300 ccu-card rounded-xl font-medium"><i class="fa-solid fa-filter text-2xl mb-2 text-cyan-400 block"></i>No hay vueltas registradas que coincidan con el estado seleccionado ("${filtroEstadoVuelta}").</div>`;
+            }
+
+            const uphCajas = tiempoTotalSegundosCajas > 0 ? ((cajasTerminadasAcc / (tiempoTotalSegundosCajas / 3600))).toFixed(1) : '0.0';
+            const uphPallets = tiempoTotalSegundosPallets > 0 ? ((completadosPalletsAcc / (tiempoTotalSegundosPallets / 3600))).toFixed(1) : '0.0';
+            const porcentajeAvance = totalPalletsGlobal > 0 ? Math.round((completadosPalletsAcc / totalPalletsGlobal) * 100) : 0;
+
+            document.getElementById('kpiCajasSinAsignar').innerText = cajasSinAsignarAcc;
+            document.getElementById('kpiCajasPendientes').innerText = cajasPendientesAcc;
+            document.getElementById('kpiCajasTerminadas').innerText = cajasTerminadasAcc;
+            document.getElementById('kpiUPHCajas').innerText = uphCajas;
+            document.getElementById('kpiUPHPallets').innerText = uphPallets;
+            document.getElementById('kpiTotalesCajasPallets').innerText = `${totalCajasGlobal} Cajas / ${totalPalletsGlobal} Pts`;
+            document.getElementById('kpiSLA').innerText = `${porcentajeAvance}%`;
+
+            renderizarGraficos(cajasPorAuxiliar, conteoEstado);
+            renderizarTablaMatrizHoraria(matrizHoraria, horasSet);
+        }
+
+        /* RENDERIZADO DE LA MINUTA DE REUNIÓN CON OPCIÓN DE REASIGNACIÓN */
+        function renderizarVistaMinutaAuxiliares(listaAMostrar) {
+            const contenedor = document.getElementById('contenedorMinutaAuxiliares');
+            if (!contenedor) return;
+
+            contenedor.innerHTML = '';
+
+            if (!listaAMostrar || listaAMostrar.length === 0) {
+                contenedor.innerHTML = `<div class="p-6 text-center text-slate-400">No hay asignaciones para mostrar en la minuta.</div>`;
+                return;
+            }
+
+            const agrupadoPorAuxiliar = {};
+            agrupadoPorAuxiliar['SIN_ASIGNAR'] = [];
+
+            Object.keys(mapaAuxiliaresObjetos).forEach(id => {
+                agrupadoPorAuxiliar[id] = [];
+            });
+
+            listaAMostrar.forEach(item => {
+                const auxId = item.usuario_id || 'SIN_ASIGNAR';
+                if (!agrupadoPorAuxiliar[auxId]) agrupadoPorAuxiliar[auxId] = [];
+                agrupadoPorAuxiliar[auxId].push(item);
+            });
+
+            const auxIdsList = Object.keys(agrupadoPorAuxiliar);
+
+            auxIdsList.forEach(auxId => {
+                const palletsAux = agrupadoPorAuxiliar[auxId];
+                if (palletsAux.length === 0 && auxId === 'SIN_ASIGNAR') return;
+
+                const nombreAuxiliar = auxId === 'SIN_ASIGNAR' ? 'PALLETS SIN ASIGNAR' : (mapaAuxiliaresObjetos[auxId] ? mapaAuxiliaresObjetos[auxId].nombre : 'Auxiliar Desconocido');
+                const esSinAsignar = auxId === 'SIN_ASIGNAR';
+
+                palletsAux.sort((a, b) => {
+                    const cargaA = a.prioridades_cargas || {};
+                    const cargaB = b.prioridades_cargas || {};
+
+                    const vueltaA = parseInt(cargaA.vuelta, 10) || 0;
+                    const vueltaB = parseInt(cargaB.vuelta, 10) || 0;
+                    if (vueltaA !== vueltaB) return vueltaA - vueltaB;
+
+                    const camionA = String(cargaA.camion || '');
+                    const camionB = String(cargaB.camion || '');
+                    if (camionA !== camionB) return camionA.localeCompare(camionB, undefined, { numeric: true });
+
+                    const bahiaA = parseInt(cargaA.bay_number, 10) || 0;
+                    const bahiaB = parseInt(cargaB.bay_number, 10) || 0;
+                    return bahiaA - bahiaB;
+                });
+
+                let totalCajasAux = 0;
+                palletsAux.forEach(p => totalCajasAux += (p.prioridades_cargas?.total_cajas || 0));
+
+                const colorBordeHeader = esSinAsignar ? 'border-red-500/60 bg-red-950/20' : 'border-cyan-500/40 bg-[#020b0e]';
+                const colorTextoNombre = esSinAsignar ? 'text-red-400' : 'text-cyan-300';
+
+                let filasTablaHtml = '';
+                if (palletsAux.length === 0) {
+                    filasTablaHtml = `<tr><td colspan="6" class="p-3 text-center text-slate-500 italic">Sin pallets asignados para esta jornada.</td></tr>`;
+                } else {
+                    palletsAux.forEach((item, index) => {
+                        const carga = item.prioridades_cargas || {};
+                        const estado = item.estado || 'PENDIENTE';
+
+                        let badgeEstado = 'bg-amber-500/20 text-amber-300';
+                        if (estado === 'EN_PROCESO') badgeEstado = 'bg-cyan-500/20 text-cyan-300';
+                        if (estado === 'COMPLETADO') badgeEstado = 'bg-emerald-500/20 text-emerald-300';
+
+                        filasTablaHtml += `
+                            <tr class="hover:bg-cyan-950/20 transition border-b border-slate-800/80">
+                                <td class="p-2.5 font-bold text-center text-slate-400 font-mono">${index + 1}</td>
+                                <td class="p-2.5 font-bold text-white"><i class="fa-solid fa-truck text-xs text-cyan-400 mr-1.5"></i> ${carga.camion || '-'}</td>
+                                <td class="p-2.5 font-extrabold text-center text-amber-300 font-mono">Vuelta ${carga.vuelta || '1'}</td>
+                                <td class="p-2.5 font-bold text-center text-purple-300 font-mono">Bahía / Pallet ${carga.bay_number || '1'}</td>
+                                <td class="p-2.5 font-black text-right text-emerald-300 font-mono">${carga.total_cajas || 0} cjs</td>
+                                <td class="p-2.5 text-center">
+                                    <span class="px-2 py-0.5 rounded text-[10px] font-bold ${badgeEstado}">${estado}</span>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+
+                // Botón de reasignación masiva si no asistió (sólo para auxiliares registrados con pallets)
+                let botonFaltanteHtml = '';
+                if (!esSinAsignar && palletsAux.length > 0) {
+                    botonFaltanteHtml = `
+                        <button onclick="reasignarTodosPalletsDeAuxiliar('${auxId}', '${nombreAuxiliar.replace(/'/g, "\\'")}')" class="no-print bg-red-950/80 hover:bg-red-900 text-red-300 border border-red-500/50 px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center gap-1.5 shadow">
+                            <i class="fa-solid fa-user-xmark text-red-400"></i> Reasignar a Compañeros
+                        </button>
+                    `;
+                }
+
+                const cardAuxiliar = document.createElement('div');
+                cardAuxiliar.className = `ccu-card rounded-xl overflow-hidden print-card border ${colorBordeHeader}`;
+
+                cardAuxiliar.innerHTML = `
+                    <div class="p-3.5 flex flex-wrap justify-between items-center gap-3 border-b border-cyan-500/30">
+                        <div class="flex items-center gap-2">
+                            <i class="fa-solid ${esSinAsignar ? 'fa-triangle-exclamation text-red-400' : 'fa-user-gear text-cyan-400'} text-base"></i>
+                            <h3 class="font-extrabold text-sm ${colorTextoNombre}">${nombreAuxiliar}</h3>
+                        </div>
+                        <div class="flex flex-wrap items-center gap-3">
+                            ${botonFaltanteHtml}
+                            <span class="bg-cyan-950 text-cyan-300 px-2.5 py-1 rounded text-xs font-bold border border-cyan-500/30 print-text">
+                                <i class="fa-solid fa-boxes-stacked mr-1"></i> ${totalCajasAux} Cajas
+                            </span>
+                            <span class="bg-purple-950 text-purple-300 px-2.5 py-1 rounded text-xs font-bold border border-purple-500/30 print-text">
+                                <i class="fa-solid fa-pallet mr-1"></i> ${palletsAux.length} Pallets
+                            </span>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-xs text-left border-collapse">
+                            <thead>
+                                <tr class="bg-[#01080b] text-cyan-300 border-b border-cyan-500/20 font-bold uppercase tracking-wider print-text">
+                                    <th class="p-2.5 text-center w-12">#</th>
+                                    <th class="p-2.5">Camión</th>
+                                    <th class="p-2.5 text-center">Vuelta</th>
+                                    <th class="p-2.5 text-center">Bahía / Pallet</th>
+                                    <th class="p-2.5 text-right">Cajas</th>
+                                    <th class="p-2.5 text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-slate-800 print-text">
+                                ${filasTablaHtml}
+                            </tbody>
+                        </table>
+                    </div>
+                `;
+
+                contenedor.appendChild(cardAuxiliar);
+            });
+        }
+
+        /* MATRIZ HORARIA */
+        function renderizarTablaMatrizHoraria(matrizHoraria, horasSet) {
+            const trEncabezado = document.getElementById('encabezadoTablaHorario');
+            const tbodyCuerpo = document.getElementById('cuerpoTablaHorario');
+            const trPie = document.getElementById('pieTablaHorario');
+
+            if (!trEncabezado || !tbodyCuerpo || !trPie) return;
+
+            trEncabezado.innerHTML = '<th class="p-2.5 font-extrabold min-w-[160px]">AUXILIAR / HORA</th>';
+            tbodyCuerpo.innerHTML = '';
+            trPie.innerHTML = '<td class="p-2.5">TOTAL HORA</td>';
+
+            const horasOrdenadas = Array.from(horasSet).sort();
+
+            if (horasOrdenadas.length === 0) {
+                tbodyCuerpo.innerHTML = `<tr><td colspan="2" class="p-4 text-center text-slate-400 font-sans">No hay registros de horas finalizadas aún para la selección actual.</td></tr>`;
+                return;
+            }
+
+            horasOrdenadas.forEach(h => {
+                trEncabezado.innerHTML += `<th class="p-2.5 text-center font-bold border-l border-cyan-500/20">${h}</th>`;
+            });
+            trEncabezado.innerHTML += `<th class="p-2.5 text-right font-extrabold text-emerald-400 border-l border-cyan-500/40">TOTAL FILA</th>`;
+
+            const totalesPorColumna = {};
+            horasOrdenadas.forEach(h => totalesPorColumna[h] = 0);
+            let totalGeneralGlobal = 0;
+
+            const listaAuxiliaresTodos = Object.values(mapaAuxiliaresObjetos).map(a => a.nombre);
+            
+            Object.keys(matrizHoraria).forEach(n => {
+                if (!listaAuxiliaresTodos.includes(n)) listaAuxiliaresTodos.push(n);
+            });
+
+            listaAuxiliaresTodos.sort();
+
+            listaAuxiliaresTodos.forEach(auxNombre => {
+                let totalFilaAuxiliar = 0;
+                let htmlFila = `<tr class="hover:bg-cyan-950/30 transition"><td class="p-2.5 font-sans font-bold text-white flex items-center gap-1.5"><i class="fa-solid fa-user text-[10px] text-cyan-400"></i> ${auxNombre}</td>`;
+
+                horasOrdenadas.forEach(h => {
+                    const cantidadCajas = (matrizHoraria[auxNombre] && matrizHoraria[auxNombre][h]) ? matrizHoraria[auxNombre][h] : 0;
+                    totalFilaAuxiliar += cantidadCajas;
+                    totalesPorColumna[h] += cantidadCajas;
+
+                    const claseColor = cantidadCajas > 0 ? 'text-cyan-300 font-bold' : 'text-slate-600';
+                    htmlFila += `<td class="p-2.5 text-center border-l border-cyan-500/10 ${claseColor}">${cantidadCajas || '-'}</td>`;
+                });
+
+                totalGeneralGlobal += totalFilaAuxiliar;
+
+                htmlFila += `<td class="p-2.5 text-right font-bold text-emerald-300 border-l border-cyan-500/30">${totalFilaAuxiliar}</td></tr>`;
+                tbodyCuerpo.innerHTML += htmlFila;
+            });
+
+            horasOrdenadas.forEach(h => {
+                trPie.innerHTML += `<td class="p-2.5 text-center border-l border-cyan-500/20 font-bold text-emerald-400">${totalesPorColumna[h]}</td>`;
+            });
+            trPie.innerHTML += `<td class="p-2.5 text-right font-black text-emerald-300 border-l border-cyan-500/40 text-sm">${totalGeneralGlobal}</td>`;
+        }
+
+        /* GRÁFICOS */
+        function renderizarGraficos(cajasPorAuxiliar, conteoEstado) {
+            const ctxCajas = document.getElementById('chartCajasAuxiliares');
+            const ctxEstado = document.getElementById('chartEstadoVolantes');
+
+            if (!ctxCajas || !ctxEstado) return;
+
+            if (chartCajasAuxiliares) chartCajasAuxiliares.destroy();
+            if (chartEstadoVolantes) chartEstadoVolantes.destroy();
+
+            const labelsAux = Object.keys(cajasPorAuxiliar);
+            const dataCajas = labelsAux.map(k => cajasPorAuxiliar[k]);
+
+            chartCajasAuxiliares = new Chart(ctxCajas, {
+                type: 'bar',
+                data: {
+                    labels: labelsAux.length > 0 ? labelsAux : ['Sin Cajas Completadas'],
+                    datasets: [{ 
+                        label: 'Cajas Terminadas', 
+                        data: dataCajas.length > 0 ? dataCajas : [0], 
+                        backgroundColor: '#00e5ff',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { ticks: { color: '#ffffff', font: { weight: 'bold' } }, grid: { display: false } },
+                        x: { ticks: { color: '#ffffff', font: { weight: 'bold' } }, grid: { color: 'rgba(0,229,255,0.15)' } }
+                    }
+                }
+            });
+
+            chartEstadoVolantes = new Chart(ctxEstado, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Pendientes', 'En Proceso', 'Completados'],
+                    datasets: [{ data: [conteoEstado.PENDIENTE || 0, conteoEstado.EN_PROCESO || 0, conteoEstado.COMPLETADO || 0], backgroundColor: ['#ffb74d', '#00acc1', '#66bb6a'] }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { labels: { color: '#ffffff', font: { weight: 'bold' } } } }
+                }
+            });
+        }
+
+        /* FUNCIONES OPERATIVAS Y MASIVAS */
+        window.asignarHomogeneamenteRuta = async function(routeId) {
+            const auxiliaresActivosIds = Object.keys(mapaAuxiliaresGlobal);
+            
+            if (auxiliaresActivosIds.length === 0) {
+                return alert("No hay auxiliares ACTIVOS en este Centro de Distribución. Activa al menos uno en 'Gestión Auxiliares'.");
+            }
+
+            const palletsRuta = listaAsignacionesGlobales.filter(item => {
+                const carga = item.prioridades_cargas;
+                return carga && carga.route_id === routeId && item.estado !== 'COMPLETADO';
+            });
+
+            if (palletsRuta.length === 0) {
+                return alert("No hay pallets pendientes para asignar en esta ruta.");
+            }
+
+            if (!confirm(`¿Deseas repartir homogéneamente ${palletsRuta.length} pallets entre los ${auxiliaresActivosIds.length} auxiliares ACTIVOS?`)) {
+                return;
+            }
+
+            const batch = writeBatch(db);
+            palletsRuta.forEach((item, idx) => {
+                const auxAsignado = auxiliaresActivosIds[idx % auxiliaresActivosIds.length];
+                item.usuario_id = auxAsignado;
+                
+                const refDoc = doc(db, "asignaciones_cargas", item.id);
+                batch.update(refDoc, { usuario_id: auxAsignado });
+            });
+
+            aplicarFiltrosGlobales();
+
+            try {
+                await batch.commit();
+            } catch (err) {
+                alert("Error durante la asignación automática: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        window.finalizarTodaLaCargaRuta = async function(routeId) {
+            const ahora = new Date().toISOString();
+            const palletsPendientesOEnProceso = listaAsignacionesGlobales.filter(item => {
+                const carga = item.prioridades_cargas;
+                return carga && carga.route_id === routeId && item.estado !== 'COMPLETADO';
+            });
+
+            if (palletsPendientesOEnProceso.length === 0) {
+                return alert("Todos los pallets de este camión ya se encuentran completados.");
+            }
+
+            if (!confirm(`¿Estás seguro de finalizar masivamente la carga completa (${palletsPendientesOEnProceso.length} pallets faltantes) de esta ruta?`)) {
+                return;
+            }
+
+            palletsPendientesOEnProceso.forEach(item => {
+                item.estado = 'COMPLETADO';
+                if (!item.fecha_inicio) item.fecha_inicio = ahora;
+                item.fecha_fin = ahora;
+            });
+
+            aplicarFiltrosGlobales();
+
+            try {
+                const batch = writeBatch(db);
+                palletsPendientesOEnProceso.forEach(item => {
+                    const refDoc = doc(db, "asignaciones_cargas", item.id);
+                    batch.update(refDoc, { 
+                        estado: 'COMPLETADO',
+                        fecha_inicio: item.fecha_inicio,
+                        fecha_fin: ahora
+                    });
+                });
+
+                await batch.commit();
+            } catch (err) {
+                alert("Error al finalizar la carga del camión: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        window.toggleAcordeonCamion = function(accordionId, flechaId) {
+            const contenido = document.getElementById(accordionId);
+            const flecha = document.getElementById(flechaId);
+            if (contenido) {
+                contenido.classList.toggle('hidden');
+                if (flecha) flecha.classList.toggle('rotate-180');
+
+                if (contenido.classList.contains('hidden')) {
+                    acordeonesAbiertos.delete(accordionId);
+                } else {
+                    acordeonesAbiertos.add(accordionId);
+                }
+            }
+        };
+
+        window.reasignarPalletAuxiliar = async function(asignacionId, nuevoUsuarioId) {
+            const item = listaAsignacionesGlobales.find(a => a.id === asignacionId);
+            if (item) item.usuario_id = nuevoUsuarioId;
+            aplicarFiltrosGlobales();
+
+            try {
+                await updateDoc(doc(db, "asignaciones_cargas", asignacionId), { usuario_id: nuevoUsuarioId });
+            } catch (err) {
+                alert("Error reasignando pallet: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        window.iniciarVolante = async function(id) {
+            const ahora = new Date().toISOString();
+            const item = listaAsignacionesGlobales.find(a => a.id === id);
+            if (item) {
+                item.estado = 'EN_PROCESO';
+                item.fecha_inicio = ahora;
+            }
+            aplicarFiltrosGlobales();
+
+            try {
+                await updateDoc(doc(db, "asignaciones_cargas", id), { 
+                    estado: 'EN_PROCESO',
+                    fecha_inicio: ahora
+                });
+            } catch (err) {
+                alert("Error iniciando tarea: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        window.completarVolante = async function(id) {
+            const ahora = new Date().toISOString();
+            const item = listaAsignacionesGlobales.find(a => a.id === id);
+            if (item) {
+                item.estado = 'COMPLETADO';
+                item.fecha_fin = ahora;
+            }
+            aplicarFiltrosGlobales();
+
+            try {
+                await updateDoc(doc(db, "asignaciones_cargas", id), { 
+                    estado: 'COMPLETADO',
+                    fecha_fin: ahora
+                });
+            } catch (err) {
+                alert("Error completando tarea: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        window.iniciarTodosLosAsignadosRuta = async function(routeId) {
+            const ahora = new Date().toISOString();
+            const asignadosPendientes = listaAsignacionesGlobales.filter(item => {
+                const carga = item.prioridades_cargas;
+                return carga && carga.route_id === routeId && item.usuario_id !== 'SIN_ASIGNAR' && item.estado === 'PENDIENTE';
+            });
+
+            if (asignadosPendientes.length === 0) {
+                return alert("No hay pallets asignados pendientes de iniciar en este camión.");
+            }
+
+            if (!confirm(`¿Deseas iniciar simultáneamente los ${asignadosPendientes.length} pallets asignados para esta ruta?`)) {
+                return;
+            }
+
+            asignadosPendientes.forEach(item => { 
+                item.estado = 'EN_PROCESO';
+                item.fecha_inicio = ahora;
+            });
+            aplicarFiltrosGlobales();
+
+            try {
+                const batch = writeBatch(db);
+                asignadosPendientes.forEach(item => {
+                    const refDoc = doc(db, "asignaciones_cargas", item.id);
+                    batch.update(refDoc, { 
+                        estado: 'EN_PROCESO',
+                        fecha_inicio: ahora
+                    });
+                });
+
+                await batch.commit();
+            } catch (err) {
+                alert("Error al iniciar los pallets: " + err.message);
+                await cargarVolantesPicking();
+            }
+        };
+
+        function renderizarVistaAuxiliar(listaAMostrar) {
+            const contAux = document.getElementById('contenedorAuxiliarTarjetas');
+            if (!contAux || !perfilUsuario) return;
+
+            contAux.innerHTML = '';
+            const misPallets = (listaAMostrar || []).filter(a => a.usuario_id === perfilUsuario.id);
+
+            if (misPallets.length === 0) {
+                contAux.innerHTML = `<div class="col-span-full p-8 text-center text-slate-300 ccu-card rounded-xl font-medium">No tienes pallets asignados con los filtros seleccionados.</div>`;
+                return;
+            }
+
+            misPallets.forEach(item => {
+                const carga = item.prioridades_cargas || {};
+                const camion = carga.camion || '-';
+                const vuelta = carga.vuelta || '1';
+                const bahia = carga.bay_number || '1';
+                const cajas = carga.total_cajas || 0;
+                const estadoLimpio = item.estado || 'PENDIENTE';
+
+                const horaInicio = formatearHoraISO(item.fecha_inicio);
+                const horaFin = formatearHoraISO(item.fecha_fin);
+                const duracionMin = (estadoLimpio !== 'PENDIENTE') ? calcularDuracionMinutos(item.fecha_inicio, item.fecha_fin) : '--';
+
+                const card = document.createElement('div');
+                card.className = "ccu-card rounded-xl p-5 space-y-4 shadow-md border border-cyan-500/30";
+
+                let botonAccion = '';
+                if (estadoLimpio === 'PENDIENTE') {
+                    botonAccion = `<button onclick="iniciarVolante('${item.id}')" class="w-full bg-cyan-600 hover:bg-cyan-500 text-white font-bold py-2.5 rounded-lg shadow">Iniciar Picking Pallet</button>`;
+                } else if (estadoLimpio === 'EN_PROCESO') {
+                    botonAccion = `<button onclick="completarVolante('${item.id}')" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 rounded-lg shadow">Finalizar Picking Pallet</button>`;
+                } else {
+                    botonAccion = `<div class="text-center py-2 text-xs font-bold text-emerald-300 bg-emerald-500/20 rounded-lg">Pallet Completado</div>`;
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start border-b border-cyan-500/20 pb-2">
+                        <h3 class="text-base font-extrabold text-white"><i class="fa-solid fa-pallet text-cyan-400 mr-1"></i> Pallet / Bahía ${bahia}</h3>
+                        <span class="px-2.5 py-1 rounded-full text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">${estadoLimpio}</span>
+                    </div>
+                    <div class="text-sm text-slate-200 space-y-1">
+                        <p class="text-cyan-300 font-bold">Camión: ${camion} (Vuelta ${vuelta})</p>
+                        <p>Cajas a Pickear: <strong class="text-white font-mono text-base">${cajas}</strong></p>
+                    </div>
+
+                    <div class="bg-[#020b0e] p-2 rounded-lg border border-cyan-500/20 space-y-1">
+                        <div class="flex justify-between items-center text-xs font-mono">
+                            <div class="text-cyan-300">
+                                <span class="text-[10px] text-slate-400 block font-sans">INICIO</span>
+                                <i class="fa-regular fa-clock mr-1"></i>${horaInicio}
+                            </div>
+                            <div class="text-right text-emerald-300">
+                                <span class="text-[10px] text-slate-400 block font-sans">TÉRMINO</span>
+                                <i class="fa-regular fa-clock mr-1"></i>${horaFin}
+                            </div>
+                        </div>
+                        <div class="border-t border-slate-800 pt-1 flex justify-between items-center text-xs">
+                            <span class="text-slate-400 font-sans">TIEMPO TOTAL:</span>
+                            <span class="font-mono font-bold text-amber-300">${duracionMin}</span>
+                        </div>
+                    </div>
+
+                    <div>${botonAccion}</div>
+                `;
+                contAux.appendChild(card);
+            });
+        }
+
+        /* EXPORTAR REPORTE CSV */
+        window.exportarReporteCSV = function() {
+            if (!listaAsignacionesGlobales || listaAsignacionesGlobales.length === 0) {
+                return alert("No hay datos cargados para exportar.");
+            }
+
+            let csvContent = "data:text/csv;charset=utf-8,";
+            csvContent += "Route_ID,Camion,Vuelta,Bay_Number_Pallet,Cajas,Operador,Estado,Hora_Inicio,Hora_Termino,Duracion_Minutos\n";
+
+            listaAsignacionesGlobales.forEach(item => {
+                const carga = item.prioridades_cargas || {};
+                const operador = (mapaAuxiliaresObjetos[item.usuario_id] ? mapaAuxiliaresObjetos[item.usuario_id].nombre : "Sin Asignar");
+                const hInicio = formatearHoraISO(item.fecha_inicio);
+                const hFin = formatearHoraISO(item.fecha_fin);
+                const durMin = (item.estado !== 'PENDIENTE') ? calcularDuracionMinutos(item.fecha_inicio, item.fecha_fin) : '--';
+
+                csvContent += `"${carga.route_id || '-'}","${carga.camion || '-'}","${carga.vuelta || '-'}","${carga.bay_number || '-'}","${carga.total_cajas || 0}","${operador}","${item.estado || 'PENDIENTE'}","${hInicio}","${hFin}","${durMin}"\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `Reporte_Pallets_CCU_${new Date().toISOString().split('T')[0]}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        };
+
+        async function cargarListaCDs() {
+            const snap = await getDocs(collection(db, "centros_distribucion"));
+            const select = document.getElementById('cdSelect');
+            select.innerHTML = '<option value="">Selecciona un CD...</option>';
+            snap.forEach(d => {
+                const cd = d.data();
+                const selected = (d.id === cdSeleccionadoId) ? 'selected' : '';
+                select.innerHTML += `<option value="${d.id}" ${selected}>${cd.nombre}</option>`;
+            });
+        }
+
+        window.cambiarCDActual = function() {
+            cdSeleccionadoId = document.getElementById('cdSelect').value;
+            cargarVolantesPicking();
+        };
+
+        window.abrirModalOCR = function() { document.getElementById('modalOCR').classList.remove('hidden'); };
+        window.cerrarModalOCR = function() { document.getElementById('modalOCR').classList.add('hidden'); };
+        window.mostrarModalCrearCD = function() { document.getElementById('modalCrearCD').classList.remove('hidden'); };
+        window.cerrarModalCrearCD = function() { document.getElementById('modalCrearCD').classList.add('hidden'); };
+        window.cerrarModalCrearUsuario = function() { document.getElementById('modalCrearUsuario').classList.add('hidden'); };
+
+        window.mostrarModalCrearUsuario = async function() {
+            const snap = await getDocs(collection(db, "centros_distribucion"));
+            const selectCD = document.getElementById('nuevoUsuarioCD');
+            selectCD.innerHTML = '';
+            snap.forEach(d => { selectCD.innerHTML += `<option value="${d.id}">${d.data().nombre}</option>`; });
+            document.getElementById('modalCrearUsuario').classList.remove('hidden');
+        };
+
+        window.guardarNuevoCD = async function() {
+            const nombre = document.getElementById('nuevoCDNombre').value.trim();
+            if (!nombre) return;
+            await addDoc(collection(db, "centros_distribucion"), { nombre, codigo: nombre.toUpperCase().replace(/\s+/g, '_') });
+            cerrarModalCrearCD();
+            await cargarListaCDs();
+        };
+
+        window.guardarNuevoUsuario = async function() {
+            const nombre = document.getElementById('nuevoUsuarioNombre').value.trim();
+            const email = document.getElementById('nuevoUsuarioEmail').value.trim();
+            const password = document.getElementById('nuevoUsuarioPass').value;
+            const rol = document.getElementById('nuevoUsuarioRol').value;
+            const cdId = document.getElementById('nuevoUsuarioCD').value;
+
+            try {
+                const res = await createUserWithEmailAndPassword(auth, email, password);
+                await setDoc(doc(db, "perfiles", res.user.uid), { nombre, email, rol, cd_id: cdId, activo: true });
+                cerrarModalCrearUsuario();
+                alert(`¡Usuario ${nombre} creado con éxito!`);
+            } catch (err) {
+                alert("Error al crear usuario: " + err.message);
+            }
+        };
+    </script>
+</body>
+</html>
